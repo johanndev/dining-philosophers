@@ -14,13 +14,13 @@
 
 static std::atomic_bool dinnerIsRunning;
 int intRand(const int& min, const int& max) {
-	static thread_local std::mt19937 generator;
-	std::uniform_int_distribution<int> distribution(min, max);
-	return distribution(generator);
+	thread_local std::mt19937 mt{ std::random_device{}() };
+	std::uniform_int_distribution<int> dist(min, max);
+	return dist(mt);
 }
 
 
-std::vector<std::shared_ptr<Fork>> forks;
+std::vector<std::unique_ptr<Fork>> forks;
 void take_fork(int index) {
 	forks.at(index)->take_me();
 }
@@ -65,14 +65,14 @@ int main(int argc, char** argv)
 		// create as many forks as philosophers
 		for (auto i = 0; i < philCount; i++)
 		{
-			forks.emplace_back(std::make_shared<Fork>(i));
+			forks.emplace_back(std::make_unique<Fork>(i));
 		}
 
 		// prepare the 'philosophers'
 		std::vector<std::thread> philosophers;
 		for (auto i = 0; i < philCount; i++)
 		{
-			philosophers.emplace_back(std::thread(dine, philCount, i, 10, 10));
+			philosophers.emplace_back(std::thread(dine, philCount, i, thinkingTime, eatingTime));
 		}
 
 		// signal the start of the dinner to the threads
