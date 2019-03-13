@@ -2,16 +2,16 @@
 #include <mutex>
 
 class Fork {
-	std::mutex _mutex;
-	int _id;
+	std::mutex mMutex;
+	int mId;
 public:
-	Fork(int id) : _id(id) {}
-	int id() const { return _id; }
+	Fork(int id) : mId(id) {}
+	int id() const { return mId; }
 	
 	void take_me() {
-		_mutex.lock();
+		mMutex.lock();
 	}
 	void release_me() {
-		_mutex.unlock();
+		mMutex.unlock();
 	}
 };

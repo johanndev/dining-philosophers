@@ -18,12 +18,18 @@
     <ClCompile Include="main.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="philosopher.h">
+      <Filter>Headerdateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="fork.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="randomizer.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

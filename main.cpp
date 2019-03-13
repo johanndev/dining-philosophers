@@ -11,82 +11,65 @@
 #include <thread>
 #include <random>
 #include <atomic>
+#include "randomizer.h"
+#include "philosopher.h"
 
-static std::atomic_bool dinnerIsRunning;
-int intRand(const int& min, const int& max) {
-	thread_local std::mt19937 mt{ std::random_device{}() };
-	std::uniform_int_distribution<int> dist(min, max);
-	return dist(mt);
-}
+std::mutex mMutex;
+std::condition_variable mCondVar;
 
-
-std::vector<std::unique_ptr<Fork>> forks;
-void take_fork(int index) {
-	forks.at(index)->take_me();
-}
-
-void put_back_forks(int index1, int index2) {
-	auto r = intRand(0, 1);
-
-	if (r % 2) {
-		std::swap(index1, index2);
-	}
-
-	forks.at(index1)->release_me();
-	forks.at(index2)->release_me();
-}
-
-void dine(int pCount, int index, int maxThinkingTime, int maxEatingTime) {
-
-	while (!dinnerIsRunning.load()) {}
-
-	while (dinnerIsRunning)
-	{
-		auto t = intRand(0, maxThinkingTime);
-		std::this_thread::sleep_for(std::chrono::milliseconds(t));
-		std::cout << "phil" << index << " finished thinking\n";
-		take_fork(index);
-		std::cout << "phil" << index << " took first fork: " << index << "\n";
-		take_fork((index + 1) % pCount);
-		std::cout << "phil" << index << " took second fork: " << (index + 1) % pCount << "\n";
-		auto e = intRand(0, maxEatingTime);
-		std::this_thread::sleep_for(std::chrono::milliseconds(e));
-		std::cout << "phil" << index << " is done eating\n";
-		put_back_forks(index, (index + 1) % pCount);
-	}
-}
+std::vector<std::shared_ptr<Fork>> forks;
 
 int main(int argc, char** argv)
 {
-		// cmd parsing
-		int philCount, thinkingTime, eatingTime;
-		std::tie(philCount, thinkingTime, eatingTime) = ParseCmdLine(argc, argv);
+	// cmd parsing
+	int philCount, thinkingTime, eatingTime;
+	std::tie(philCount, thinkingTime, eatingTime) = ParseCmdLine(argc, argv);
 
-		// create as many forks as philosophers
-		for (auto i = 0; i < philCount; i++)
-		{
-			forks.emplace_back(std::make_unique<Fork>(i));
-		}
-
-		// prepare the 'philosophers'
-		std::vector<std::thread> philosophers;
-		for (auto i = 0; i < philCount; i++)
-		{
-			philosophers.emplace_back(std::thread(dine, philCount, i, thinkingTime, eatingTime));
-		}
-
-		// signal the start of the dinner to the threads
-		dinnerIsRunning.store(true);
-		std::cout << "Press any key to end the dinner...\n";
-		std::cin.ignore();
-
-		// signal end of dinner to threads
-		dinnerIsRunning.store(false);
-
-		for (auto& p : philosophers) {
-			p.join();
-		}
+	// create as many forks as philosophers
+	for (auto i = 0; i < philCount; i++)
+	{
+		forks.emplace_back(std::make_shared<Fork>(i));
 	}
+
+	const auto dinnerIsRunning = std::make_shared<std::atomic_bool>();
+	auto threads = std::vector<std::thread>();
+
+	// prepare the 'philosophers'
+	std::vector<Philosopher> philosophers;
+	auto randomizer = std::make_shared<Randomizer>();
+	for (auto i = 0; i < philCount; i++)
+	{
+		philosophers.emplace_back(Philosopher{
+			i,
+			thinkingTime,
+			eatingTime,
+			forks[i],
+			forks[(i + 1) % philCount],
+			randomizer,
+			dinnerIsRunning
+		});
+	}
+
+	// Get the philosophers to the table
+	for (auto &phil : philosophers)
+	{
+		threads.emplace_back(std::thread([&phil]() {
+			phil.dine();
+		}));
+	}
+
+	// signal the start of the dinner to the philosophers
+	dinnerIsRunning->store(true);
+	std::cout << "Press any key to end the dinner...\n";
+	std::cin.ignore();
+
+	// signal end of dinner to threads
+	dinnerIsRunning->store(false);
+
+	for (auto& t : threads) {
+		t.join();
+	}
+}
 
 
 
